@@ -18,7 +18,7 @@ idf_component_register(
         "fonts"
 
     REQUIRES
-        esp_lvgl_port
+        esp_lvgl_adapter
         lvgl
         esp_timer
         esp_lcd
