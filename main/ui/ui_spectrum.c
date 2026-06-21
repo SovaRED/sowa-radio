@@ -3,27 +3,30 @@
 #include <string.h>
 #include <math.h>
 
-#define SPEC_BARS       96
-#define SPEC_BAR_W      7    /* (800 - 96*1.2) / 96 ≈ 7px */
-#define SPEC_GAP        1
+#define SPEC_BARS   96
+#define SPEC_BAR_W  7
+#define SPEC_GAP    1
 
-static lv_obj_t   *canvas;
+static lv_obj_t     *canvas;
 static lv_draw_buf_t draw_buf;
-static uint8_t     cbuf[UI_SCR_W * UI_SPECTRUM_H * 4]; /* ARGB8888 */
+static uint8_t       cbuf[UI_SCR_W * UI_SPECTRUM_H * 4];
 
-static float bar_h[SPEC_BARS];       /* поточна висота */
-static float bar_tgt[SPEC_BARS];     /* цільова висота */
-static float bar_vel[SPEC_BARS];     /* швидкість підйому */
-static float bar_fall[SPEC_BARS];    /* швидкість падіння */
-static float sim_phase[SPEC_BARS];   /* фаза для симуляції */
-static float sim_freq[SPEC_BARS];    /* частота для симуляції */
+static float bar_h[SPEC_BARS];
+static float bar_tgt[SPEC_BARS];
+static float bar_vel[SPEC_BARS];
+static float bar_fall[SPEC_BARS];
+static float sim_phase[SPEC_BARS];
+static float sim_freq[SPEC_BARS];
 static bool  is_playing = false;
-static lv_timer_t *spec_timer;
+static float sim_t = 0.0f;
 
-/* ── Ініціалізація ────────────────────────────────────── */
+/* ── Прямі оголошення ──────────────────────────────────── */
+static void spec_timer_cb(lv_timer_t *timer);
+static void spec_draw(void);
+
+/* ── Ініціалізація ─────────────────────────────────────── */
 void ui_spectrum_init(lv_obj_t *scr)
 {
-    /* Ініціалізувати параметри барів */
     for (int i = 0; i < SPEC_BARS; i++) {
         bar_h[i]     = 0.0f;
         bar_tgt[i]   = 0.0f;
@@ -33,31 +36,27 @@ void ui_spectrum_init(lv_obj_t *scr)
         sim_freq[i]  = 0.6f + ((float)(i % 11)) * 0.13f;
     }
 
-    /* Canvas */
-    lv_draw_buf_init(&draw_buf, UI_SCR_W, UI_SPECTRUM_H, LV_COLOR_FORMAT_ARGB8888,
-                     LV_STRIDE_AUTO, cbuf, sizeof(cbuf));
+    lv_draw_buf_init(&draw_buf, UI_SCR_W, UI_SPECTRUM_H,
+                     LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO,
+                     cbuf, sizeof(cbuf));
 
     canvas = lv_canvas_create(scr);
     lv_canvas_set_draw_buf(canvas, &draw_buf);
     lv_obj_set_size(canvas, UI_SCR_W, UI_SPECTRUM_H);
-    /* Позиція: над vol bar */
     lv_obj_set_pos(canvas, 0, UI_SCR_H - UI_VOL_H - UI_SPECTRUM_H);
     lv_obj_set_style_opa(canvas, LV_OPA_COVER, 0);
     lv_obj_clear_flag(canvas, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(canvas, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* Таймер відмалювання — 33ms ≈ 30fps */
-    spec_timer = lv_timer_create(spec_timer_cb, 33, NULL);
+    lv_timer_create(spec_timer_cb, 33, NULL);
 }
 
-/* ── Таймер відмалювання ─────────────────────────────── */
-static float sim_t = 0.0f;
-
+/* ── Таймер ────────────────────────────────────────────── */
 static void spec_timer_cb(lv_timer_t *timer)
 {
+    (void)timer;
     sim_t += 0.016f;
 
-    /* Симуляція або fade-out */
     for (int i = 0; i < SPEC_BARS; i++) {
         if (is_playing) {
             float pos = (float)i / SPEC_BARS;
@@ -74,17 +73,14 @@ static void spec_timer_cb(lv_timer_t *timer)
             if (bar_h[i] < 0.002f) bar_h[i] = 0.0f;
         }
     }
-
     spec_draw();
 }
 
-/* ── Відмалювання ────────────────────────────────────── */
+/* ── Відмалювання ──────────────────────────────────────── */
 static void spec_draw(void)
 {
-    int W = UI_SCR_W;
     int H = UI_SPECTRUM_H;
 
-    /* Очистити (прозорий фон) */
     lv_canvas_fill_bg(canvas, lv_color_black(), LV_OPA_TRANSP);
 
     lv_layer_t layer;
@@ -100,28 +96,23 @@ static void spec_draw(void)
         float hf = (float)bh / ((float)H * 0.9f);
         if (hf > 1.0f) hf = 1.0f;
 
-        /* Градієнт (3 кольори зверху вниз через два прямокутники) */
         lv_draw_rect_dsc_t dsc;
         lv_draw_rect_dsc_init(&dsc);
         dsc.radius = 2;
         dsc.bg_opa = LV_OPA_COVER;
-
-        /* Верхня частина бару — яскравіша */
-        uint8_t top_a = (uint8_t)((0.35f + hf * 0.6f) * 255.0f);
         dsc.bg_color = lv_color_make(140, 210, 255);
         dsc.bg_grad.dir = LV_GRAD_DIR_VER;
         dsc.bg_grad.stops[0].color = lv_color_make(140, 210, 255);
-        dsc.bg_grad.stops[0].opa   = top_a;
+        dsc.bg_grad.stops[0].opa   = (uint8_t)((0.35f + hf * 0.6f) * 255.0f);
         dsc.bg_grad.stops[0].frac  = 0;
         dsc.bg_grad.stops[1].color = lv_color_make(20, 70, 170);
-        dsc.bg_grad.stops[1].opa   = 13; /* ~5% */
+        dsc.bg_grad.stops[1].opa   = 13;
         dsc.bg_grad.stops[1].frac  = 255;
         dsc.bg_grad.stops_count    = 2;
 
         lv_area_t area = {bx, by, bx + SPEC_BAR_W - 1, H - 1};
         lv_draw_rect(&layer, &dsc, &area);
 
-        /* Highlight — 2.5px зверху */
         if (bh > 8) {
             lv_draw_rect_dsc_t hdsc;
             lv_draw_rect_dsc_init(&hdsc);
@@ -137,10 +128,9 @@ static void spec_draw(void)
     lv_canvas_finish_layer(canvas, &layer);
 }
 
-/* ── Публічні функції ────────────────────────────────── */
+/* ── Публічні функції ──────────────────────────────────── */
 void ui_spectrum_update(const float *fft_data, int len)
 {
-    /* Маппінг FFT bins → SPEC_BARS барів */
     for (int i = 0; i < SPEC_BARS && i < len; i++) {
         bar_tgt[i] = fft_data[i];
         if (bar_tgt[i] > 1.0f) bar_tgt[i] = 1.0f;

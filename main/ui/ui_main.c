@@ -15,25 +15,34 @@ static lv_obj_t *lbl_clock;
 static lv_obj_t *lbl_track;
 static lv_obj_t *lbl_counter;
 static lv_obj_t *lbl_status_center;
-
 static lv_obj_t *btn_play;
 static lv_obj_t *lbl_play_icon;
-
 static lv_obj_t *btn_mute;
 static lv_obj_t *lbl_mute_icon;
 static lv_obj_t *vol_slider;
-static lv_obj_t *vol_badge;        /* SevenSeg badge 140px над слайдером */
+static lv_obj_t *vol_badge;
 static lv_obj_t *lbl_vol_badge;
-
-/* WiFi bars */
 static lv_obj_t *wifi_bars[4];
 
-/* Стилі (статичні — ініціалізуються один раз) */
+/* Стилі */
 static lv_style_t style_screen;
-static lv_style_t style_bar;        /* статусбар і волбар */
-static lv_style_t style_ctrl_btn;   /* PREV/PLAY/NEXT */
-static lv_style_t style_hbtn;       /* кнопки хедера */
+static lv_style_t style_bar;
+static lv_style_t style_ctrl_btn;
+static lv_style_t style_hbtn;
 static bool styles_inited = false;
+
+/* ─── Callbacks для кнопок (C, не C++) ────────────────── */
+static void btn_menu_cb(lv_event_t *e)
+{
+    (void)e;
+    ui_stations_show();
+}
+
+static void btn_gear_cb(lv_event_t *e)
+{
+    (void)e;
+    ui_settings_show();
+}
 
 /* ─── Ініціалізація стилів ─────────────────────────────── */
 static void styles_init(void)
@@ -65,9 +74,9 @@ static void styles_init(void)
 
     lv_style_init(&style_hbtn);
     lv_style_set_bg_color(&style_hbtn, lv_color_hex(0xFFFFFF));
-    lv_style_set_bg_opa(&style_hbtn, 13);   /* ~5% */
+    lv_style_set_bg_opa(&style_hbtn, 13);
     lv_style_set_border_color(&style_hbtn, lv_color_hex(0xFFFFFF));
-    lv_style_set_border_opa(&style_hbtn, 23); /* ~9% */
+    lv_style_set_border_opa(&style_hbtn, 23);
     lv_style_set_border_width(&style_hbtn, 1);
     lv_style_set_radius(&style_hbtn, UI_R_HBTN);
     lv_style_set_shadow_width(&style_hbtn, 0);
@@ -87,7 +96,7 @@ static void create_status_bar(lv_obj_t *scr)
     lv_obj_set_style_border_opa(bar, LV_OPA_COVER, 0);
     lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* Кнопка ☰ (відкрити панель станцій) */
+    /* Кнопка ☰ */
     lv_obj_t *btn_menu = lv_obj_create(bar);
     lv_obj_add_style(btn_menu, &style_hbtn, 0);
     lv_obj_set_size(btn_menu, UI_HBTN_W, UI_HBTN_H);
@@ -98,11 +107,9 @@ static void create_status_bar(lv_obj_t *scr)
     lv_label_set_text(lbl_m, LV_SYMBOL_LIST);
     lv_obj_set_style_text_color(lbl_m, lv_color_hex(0xC8DCFF), 0);
     lv_obj_center(lbl_m);
-    lv_obj_add_event_cb(btn_menu, [](lv_event_t *e) {
-        ui_stations_show();
-    }, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_menu, btn_menu_cb, LV_EVENT_CLICKED, NULL);
 
-    /* Кнопка ⚙ (налаштування) */
+    /* Кнопка ⚙ */
     lv_obj_t *btn_gear = lv_obj_create(bar);
     lv_obj_add_style(btn_gear, &style_hbtn, 0);
     lv_obj_set_size(btn_gear, UI_HBTN_W, UI_HBTN_H);
@@ -113,11 +120,9 @@ static void create_status_bar(lv_obj_t *scr)
     lv_label_set_text(lbl_g, LV_SYMBOL_SETTINGS);
     lv_obj_set_style_text_color(lbl_g, lv_color_hex(0xC8DCFF), 0);
     lv_obj_center(lbl_g);
-    lv_obj_add_event_cb(btn_gear, [](lv_event_t *e) {
-        ui_settings_show();
-    }, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_gear, btn_gear_cb, LV_EVENT_CLICKED, NULL);
 
-    /* Центр: статус (IP / buffering / error) */
+    /* Центр: статус */
     lbl_status_center = lv_label_create(bar);
     lv_obj_set_width(lbl_status_center, 380);
     lv_obj_align(lbl_status_center, LV_ALIGN_CENTER, 0, 0);
@@ -126,7 +131,7 @@ static void create_status_bar(lv_obj_t *scr)
     lv_obj_set_style_text_align(lbl_status_center, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(lbl_status_center, "");
 
-    /* WiFi bars (праворуч) */
+    /* WiFi bars */
     static const uint8_t bar_h[4] = {5, 9, 13, 17};
     lv_obj_t *wifi_cont = lv_obj_create(bar);
     lv_obj_set_size(wifi_cont, 28, 17);
@@ -140,16 +145,15 @@ static void create_status_bar(lv_obj_t *scr)
         lv_obj_set_size(wifi_bars[i], 4, bar_h[i]);
         lv_obj_set_pos(wifi_bars[i], i * 7, 17 - bar_h[i]);
         lv_obj_set_style_bg_color(wifi_bars[i], lv_color_hex(0x64B4FF), 0);
-        lv_obj_set_style_bg_opa(wifi_bars[i], 46, 0); /* вимкнений бар ~18% */
+        lv_obj_set_style_bg_opa(wifi_bars[i], 46, 0);
         lv_obj_set_style_border_width(wifi_bars[i], 0, 0);
         lv_obj_set_style_radius(wifi_bars[i], 1, 0);
     }
 }
 
-/* ─── Основний контент (між статусбаром і волбаром) ────── */
+/* ─── Основний контент ─────────────────────────────────── */
 static void create_main_content(lv_obj_t *scr)
 {
-    /* Прозорий контейнер */
     lv_obj_t *cont = lv_obj_create(scr);
     lv_obj_set_size(cont, UI_SCR_W, UI_MAIN_H);
     lv_obj_set_pos(cont, 0, UI_STATUS_H);
@@ -158,7 +162,6 @@ static void create_main_content(lv_obj_t *scr)
     lv_obj_set_style_pad_all(cont, 0, 0);
     lv_obj_clear_flag(cont, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* Назва станції (16px Medium, uppercase, letter-spacing 3px) */
     lbl_station_name = lv_label_create(cont);
     lv_obj_set_style_text_font(lbl_station_name, &font_roboto_medium_16, 0);
     lv_obj_set_style_text_color(lbl_station_name, UI_C_STATION_NAME, 0);
@@ -166,17 +169,13 @@ static void create_main_content(lv_obj_t *scr)
     lv_label_set_text(lbl_station_name, "RADIO HITS FM");
     lv_obj_align(lbl_station_name, LV_ALIGN_TOP_MID, 0, 10);
 
-    /* Годинник SevenSeg 96px */
     lbl_clock = lv_label_create(cont);
     lv_obj_set_style_text_font(lbl_clock, &font_seven_segment_96, 0);
     lv_obj_set_style_text_color(lbl_clock, UI_C_CLOCK, 0);
     lv_obj_set_style_text_letter_space(lbl_clock, 10, 0);
-    /* Синє glow через shadow */
-    lv_obj_set_style_text_opa(lbl_clock, LV_OPA_COVER, 0);
     lv_label_set_text(lbl_clock, "00:00");
     lv_obj_align(lbl_clock, LV_ALIGN_TOP_MID, 0, 32);
 
-    /* Назва треку — scrolling */
     lbl_track = lv_label_create(cont);
     lv_obj_set_style_text_font(lbl_track, &font_roboto_light_15, 0);
     lv_obj_set_style_text_color(lbl_track, UI_C_TRACK, 0);
@@ -185,7 +184,6 @@ static void create_main_content(lv_obj_t *scr)
     lv_label_set_text(lbl_track, "Coldplay - Adventure of a Lifetime");
     lv_obj_align(lbl_track, LV_ALIGN_TOP_MID, 0, 148);
 
-    /* Лічильник X / N */
     lbl_counter = lv_label_create(cont);
     lv_obj_set_style_text_font(lbl_counter, &font_roboto_medium_16, 0);
     lv_obj_set_style_text_color(lbl_counter, UI_C_TEXT_MUTE, 0);
@@ -193,13 +191,11 @@ static void create_main_content(lv_obj_t *scr)
     lv_label_set_text(lbl_counter, "1 / 8");
     lv_obj_align(lbl_counter, LV_ALIGN_TOP_MID, 0, 172);
 
-    /* ── Кнопки управління ── */
-    /* Рядок: PREV(110) + gap(10) + PLAY(238) + gap(10) + NEXT(110) = 478px */
+    /* Кнопки PREV / PLAY / NEXT */
     int row_w = UI_BTN_PREV_W + 10 + UI_BTN_PLAY_W + 10 + UI_BTN_NEXT_W;
     int row_x = (UI_SCR_W - row_w) / 2;
-    int row_y = 192;  /* відступ від верху cont */
+    int row_y = 192;
 
-    /* PREV */
     lv_obj_t *btn_prev = lv_obj_create(cont);
     lv_obj_add_style(btn_prev, &style_ctrl_btn, 0);
     lv_obj_set_size(btn_prev, UI_BTN_PREV_W, UI_BTN_CTRL_H);
@@ -212,7 +208,6 @@ static void create_main_content(lv_obj_t *scr)
     lv_label_set_text(lbl_prev, "<<");
     lv_obj_center(lbl_prev);
 
-    /* PLAY */
     btn_play = lv_obj_create(cont);
     lv_obj_add_style(btn_play, &style_ctrl_btn, 0);
     lv_obj_set_size(btn_play, UI_BTN_PLAY_W, UI_BTN_CTRL_H);
@@ -225,7 +220,6 @@ static void create_main_content(lv_obj_t *scr)
     lv_label_set_text(lbl_play_icon, LV_SYMBOL_PLAY "  PLAY");
     lv_obj_center(lbl_play_icon);
 
-    /* NEXT */
     lv_obj_t *btn_next = lv_obj_create(cont);
     lv_obj_add_style(btn_next, &style_ctrl_btn, 0);
     lv_obj_set_size(btn_next, UI_BTN_NEXT_W, UI_BTN_CTRL_H);
@@ -256,7 +250,6 @@ static void create_vol_bar(lv_obj_t *scr)
     lv_obj_set_style_pad_bottom(bar, 0, 0);
     lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* Кнопка Mute (58×50) */
     btn_mute = lv_obj_create(bar);
     lv_obj_set_size(btn_mute, UI_MUTE_W, UI_MUTE_H);
     lv_obj_align(btn_mute, LV_ALIGN_LEFT_MID, 0, 0);
@@ -275,29 +268,22 @@ static void create_vol_bar(lv_obj_t *scr)
     lv_label_set_text(lbl_mute_icon, LV_SYMBOL_VOLUME_MAX);
     lv_obj_center(lbl_mute_icon);
 
-    /* Volume slider */
     vol_slider = lv_slider_create(bar);
     lv_obj_set_height(vol_slider, 20);
     lv_obj_set_pos(vol_slider, UI_MUTE_W + 14, (UI_VOL_H - 20) / 2);
     lv_obj_set_width(vol_slider, UI_SCR_W - 16 - 16 - UI_MUTE_W - 14);
     lv_slider_set_value(vol_slider, 65, LV_ANIM_OFF);
-
-    /* Стиль фону слайдера */
     lv_obj_set_style_bg_color(vol_slider, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_bg_opa(vol_slider, 20, 0);
     lv_obj_set_style_border_color(vol_slider, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_border_opa(vol_slider, 13, 0);
     lv_obj_set_style_border_width(vol_slider, 1, 0);
     lv_obj_set_style_radius(vol_slider, UI_R_VOL, 0);
-
-    /* Стиль індикатора (заповненої частини) */
     lv_obj_set_style_bg_color(vol_slider, lv_color_hex(0x1E88E5), LV_PART_INDICATOR);
     lv_obj_set_style_bg_grad_color(vol_slider, lv_color_hex(0x0D47A1), LV_PART_INDICATOR);
     lv_obj_set_style_bg_grad_dir(vol_slider, LV_GRAD_DIR_HOR, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(vol_slider, LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_radius(vol_slider, UI_R_VOL, LV_PART_INDICATOR);
-
-    /* Стиль thumb */
     lv_obj_set_style_bg_color(vol_slider, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
     lv_obj_set_style_bg_opa(vol_slider, LV_OPA_COVER, LV_PART_KNOB);
     lv_obj_set_style_radius(vol_slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
@@ -306,11 +292,10 @@ static void create_vol_bar(lv_obj_t *scr)
     lv_obj_set_style_shadow_width(vol_slider, 15, LV_PART_KNOB);
     lv_obj_set_style_shadow_opa(vol_slider, LV_OPA_70, LV_PART_KNOB);
 
-    /* Volume badge (SevenSeg, над слайдером, прихований за замовчуванням) */
     vol_badge = lv_obj_create(scr);
     lv_obj_set_size(vol_badge, 160, 90);
     lv_obj_set_style_bg_color(vol_badge, lv_color_hex(0x0A2864), 0);
-    lv_obj_set_style_bg_opa(vol_badge, 237, 0);  /* ~93% */
+    lv_obj_set_style_bg_opa(vol_badge, 237, 0);
     lv_obj_set_style_border_color(vol_badge, lv_color_hex(0x64B4FF), 0);
     lv_obj_set_style_border_width(vol_badge, 1, 0);
     lv_obj_set_style_border_opa(vol_badge, 77, 0);
@@ -318,7 +303,6 @@ static void create_vol_bar(lv_obj_t *scr)
     lv_obj_set_style_shadow_width(vol_badge, 0, 0);
     lv_obj_clear_flag(vol_badge, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(vol_badge, LV_OBJ_FLAG_HIDDEN);
-    /* Текст у badge */
     lbl_vol_badge = lv_label_create(vol_badge);
     lv_obj_set_style_text_font(lbl_vol_badge, &font_seven_segment_96, 0);
     lv_obj_set_style_text_color(lbl_vol_badge, lv_color_hex(0xFFFFFF), 0);
@@ -332,11 +316,10 @@ void ui_main_init(lv_obj_t *scr)
     styles_init();
     lv_obj_add_style(scr, &style_screen, 0);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-
     create_status_bar(scr);
     create_main_content(scr);
     create_vol_bar(scr);
-    ui_spectrum_init(scr);   /* canvas — поверх контенту, під vol bar */
+    ui_spectrum_init(scr);
 }
 
 /* ─── Оновлення даних ──────────────────────────────────── */
@@ -369,13 +352,10 @@ void ui_main_set_clock(int h, int m)
 void ui_main_set_play_state(ui_play_state_t state)
 {
     if (!lbl_play_icon) return;
-    switch (state) {
-        case UI_PLAY_STATE_PLAYING:
-            lv_label_set_text(lbl_play_icon, LV_SYMBOL_PAUSE "  PAUSE");
-            break;
-        default:
-            lv_label_set_text(lbl_play_icon, LV_SYMBOL_PLAY "  PLAY");
-            break;
+    if (state == UI_PLAY_STATE_PLAYING) {
+        lv_label_set_text(lbl_play_icon, LV_SYMBOL_PAUSE "  PAUSE");
+    } else {
+        lv_label_set_text(lbl_play_icon, LV_SYMBOL_PLAY "  PLAY");
     }
 }
 
@@ -431,14 +411,12 @@ void ui_main_set_mute(bool muted)
 
 void ui_main_set_wifi_rssi(int rssi_dbm)
 {
-    /* Кількість активних барів: -50+ = 4, -65+ = 3, -75+ = 2, -85+ = 1, < -85 = 0 */
     int active;
     if      (rssi_dbm >= -50) active = 4;
     else if (rssi_dbm >= -65) active = 3;
     else if (rssi_dbm >= -75) active = 2;
     else if (rssi_dbm >= -85) active = 1;
     else                      active = 0;
-
     for (int i = 0; i < 4; i++) {
         if (!wifi_bars[i]) continue;
         lv_obj_set_style_bg_opa(wifi_bars[i],
