@@ -20,11 +20,11 @@
 
 
 
-#ifndef ROBOTO LIGHT 15
-#define ROBOTO LIGHT 15 1
+#ifndef ROBOTO_LIGHT_15
+#define ROBOTO_LIGHT_15 1
 #endif
 
-#if ROBOTO LIGHT 15
+#if ROBOTO_LIGHT_15
 
 /*-----------------
  *    BITMAPS

@@ -23,4 +23,7 @@ idf_component_register(
         esp_timer
         esp_lcd
         driver
+        espressif__button
+        hw_init
+        nvs_flash
 )

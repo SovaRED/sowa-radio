@@ -20,11 +20,11 @@
 
 
 
-#ifndef ROBOTO MEDIUM 16
-#define ROBOTO MEDIUM 16 1
+#ifndef ROBOTO_MEDIUM_16
+#define ROBOTO_MEDIUM_16 1
 #endif
 
-#if ROBOTO MEDIUM 16
+#if ROBOTO_MEDIUM_16
 
 /*-----------------
  *    BITMAPS

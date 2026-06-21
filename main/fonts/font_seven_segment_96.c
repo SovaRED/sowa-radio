@@ -20,11 +20,11 @@
 
 
 
-#ifndef SEVEN SEGMENT
-#define SEVEN SEGMENT 1
+#ifndef SEVEN_SEGMENT
+#define SEVEN_SEGMENT 1
 #endif
 
-#if SEVEN SEGMENT
+#if SEVEN_SEGMENT
 
 /*-----------------
  *    BITMAPS
