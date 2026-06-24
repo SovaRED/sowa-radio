@@ -2,14 +2,15 @@
 #include "ui_theme.h"
 #include <string.h>
 #include <math.h>
+#include "esp_heap_caps.h"
 
 #define SPEC_BARS   96
 #define SPEC_BAR_W  7
 #define SPEC_GAP    1
 
-static lv_obj_t     *canvas;
+static lv_obj_t     *canvas  = NULL;
 static lv_draw_buf_t draw_buf;
-static uint8_t       cbuf[UI_SCR_W * UI_SPECTRUM_H * 4];
+static uint8_t      *cbuf    = NULL;   /* виділяється в PSRAM */
 
 static float bar_h[SPEC_BARS];
 static float bar_tgt[SPEC_BARS];
@@ -36,9 +37,19 @@ void ui_spectrum_init(lv_obj_t *scr)
         sim_freq[i]  = 0.6f + ((float)(i % 11)) * 0.13f;
     }
 
+    /* Виділяємо буфер canvas у PSRAM (800×165×4 = ~528 KB) */
+    size_t buf_size = (size_t)UI_SCR_W * UI_SPECTRUM_H * 4;
+    cbuf = (uint8_t *)heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
+    if (cbuf == NULL) {
+        /* Якщо PSRAM недоступна — fallback у звичайну heap (малоймовірно,
+           але краще не впасти з NULL deref) */
+        cbuf = (uint8_t *)heap_caps_malloc(buf_size, MALLOC_CAP_DEFAULT);
+    }
+    /* У production тут варто перевірити assert(cbuf != NULL) */
+
     lv_draw_buf_init(&draw_buf, UI_SCR_W, UI_SPECTRUM_H,
                      LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO,
-                     cbuf, sizeof(cbuf));
+                     cbuf, buf_size);
 
     canvas = lv_canvas_create(scr);
     lv_canvas_set_draw_buf(canvas, &draw_buf);

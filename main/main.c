@@ -72,7 +72,23 @@ void app_main(void)
 
     /* Touch init */
     esp_lcd_touch_handle_t touch_handle = NULL;
-    ESP_ERROR_CHECK(hw_touch_init(&touch_handle, rotation));
+    
+//    ESP_ERROR_CHECK(hw_touch_init(&touch_handle, rotation));
+    // СТАЛО:
+    esp_err_t touch_ret = hw_touch_init(&touch_handle, rotation);
+    if (touch_ret != ESP_OK) {
+        ESP_LOGW(TAG, "Touch init failed (0x%x), continuing without touch", touch_ret);
+        touch_handle = NULL;
+    }
+
+    if (touch_handle != NULL) {
+        esp_lv_adapter_touch_config_t touch_cfg =
+            ESP_LV_ADAPTER_TOUCH_DEFAULT_CONFIG(disp, touch_handle);
+        if (esp_lv_adapter_register_touch(&touch_cfg) == NULL) {
+            ESP_LOGW(TAG, "Failed to register touch");
+        }
+    }    
+//
     esp_lv_adapter_touch_config_t touch_cfg =
         ESP_LV_ADAPTER_TOUCH_DEFAULT_CONFIG(disp, touch_handle);
     if (esp_lv_adapter_register_touch(&touch_cfg) == NULL) {
